@@ -9,6 +9,9 @@ from seo_audit.selenium_analyzer import SeleniumAnalyzer
 from seo_audit.auditor import SEOAuditor
 from seo_audit.reporter import Reporter
 
+# Imports needed for the Streamlit Twisted Reactor fix
+from multiprocessing import Process, Queue
+
 # Initialize colorama for Windows
 init(autoreset=True)
 
@@ -35,6 +38,51 @@ def print_progress(message, status='info'):
     color = colors.get(status, Fore.WHITE)
     print(f"{color}[{status.upper()}] {message}{Style.RESET_ALL}")
 
+def _crawl_subprocess_worker(queue, url, max_pages):
+    """
+    Isolated worker function that runs inside a brand new process.
+    This allows Scrapy/Twisted to start and exit completely cleanly.
+    """
+    try:
+        # Instantiate and run the crawler inside this fresh process context
+        crawler = Crawler(start_url=url, max_pages=max_pages)
+        pages_data = crawler.crawl()
+        queue.put({"success": True, "data": pages_data})
+    except Exception as e:
+        queue.put({"success": False, "error": str(e)})
+
+def run_audit(url, max_pages=3):
+    """
+    Safe wrapper execution for Streamlit interface to prevent 
+    twisted.internet.error.ReactorNotRestartable
+    """
+    queue = Queue()
+    
+    # Spawn the crawl workflow inside a separate isolated sub-process
+    process = Process(target=_crawl_subprocess_worker, args=(queue, url, max_pages))
+    process.start()
+    process.join()  # Wait for the crawling worker thread block to finish
+    
+    result = queue.get()
+    
+    if not result["success"]:
+        print_progress(f"Subprocess crawl failed: {result['error']}", 'error')
+        return None
+        
+    pages_data = result["data"]
+
+    if not pages_data:
+        return None
+
+    auditor = SEOAuditor()
+
+    # Pass empty dict for selenium_data during UI execution to match previous behavior
+    audit_results = auditor.audit_site(
+        pages_data,
+        {}
+    )
+
+    return audit_results
 
 def main():
     parser = argparse.ArgumentParser(
@@ -150,4 +198,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

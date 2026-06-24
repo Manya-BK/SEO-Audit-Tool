@@ -58,27 +58,143 @@ class Reporter:
             padding-bottom: 20px;
             margin-bottom: 30px;
         }
+
+        .header-top{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            flex-wrap:wrap;
+        }
+        .download-btn{
+            background:#2563eb;
+            color:white;
+            padding:12px 20px;
+            border-radius:10px;
+            text-decoration:none;
+            font-weight:bold;
+            border:none;
+            cursor:pointer;
+        }
+
+        .download-btn:hover{
+            background:#1d4ed8;
+        }
+
+        .site-url{
+            color:#777;
+            font-size:20px;
+            margin-top:5px;
+        }
+
+        .header-date{
+            color:#555;
+            font-size:18px;
+            font-weight:500;
+        }
+
         .meta-info {
             color: #7f8c8d;
             font-size: 0.9em;
         }
-        .overall-score {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .header-info{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-top:20px;
+            gap:20px;
+            flex-wrap:wrap;
+        }
+
+        .site-url{
+            color:#777;
+            font-size:20px;
+        }
+
+        .header-date{
+            color:#555;
+            font-size:18px;
+            font-weight:500;
+        }
+
+        .download-btn{
+            background:#2563eb;
+            color:white;
+            padding:12px 24px;
+            border-radius:10px;
+            text-decoration:none;
+            font-weight:600;
+        }
+
+        .download-btn:hover{
+            background:#1d4ed8;
+        }
+        
+        .score-card {
+            background: white;
+            border-radius: 20px;
             padding: 30px;
-            border-radius: 8px;
             text-align: center;
-            margin: 30px 0;
+            margin: 30px auto;
+            width: 420px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
-        .score-number {
-            font-size: 4em;
+
+        .score-card h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .score-circle {
+            width: 240px;
+        height: 240px;
+        margin: 20px auto;
+        border-radius: 50%;
+        background:
+        conic-gradient(
+            #2563eb 0deg,
+            #22c55e 180deg,
+            #eab308 280deg,
+            #f97316 320deg,
+            #e5e7eb 320deg
+        );
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        }
+
+        .score-circle::before {
+            content: "";
+            width: 180px;
+            height: 180px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .score-value {
+            position: relative;
+            z-index: 2;
+            font-size: 55px;
             font-weight: bold;
-            margin: 10px 0;
         }
-        .score-label {
-            font-size: 1.2em;
-            opacity: 0.9;
+
+        .score-value span {
+            display: block;
+            font-size: 22px;
+            color: gray;
         }
+
+        .score-status {
+            display: inline-block;
+            background: #22c55e;
+            color: white;
+            padding: 8px 22px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
         .summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -206,20 +322,44 @@ class Reporter:
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🔍 SEO Audit Report</h1>
-            <div class="meta-info">
-                <p><strong>Site:</strong> {{ site_url }}</p>
-                <p><strong>Date:</strong> {{ timestamp }}</p>
-                <p><strong>Pages Analyzed:</strong> {{ summary.total_pages }}</p>
-            </div>
-        </div>
+    <div class="header">
         
-        <div class="overall-score">
-            <div class="score-label">Overall SEO Score</div>
-            <div class="score-number">{{ audit_results.overall_score }}</div>
-            <div class="score-label">out of 100</div>
+        <h1>SEO Audit Report - {{ site_name }}</h1>
+
+        <div class="header-info">
+            <span class="site-url">{{ site_url }}</span>
+
+            <span class="header-date">
+                {{ timestamp }}
+            </span>
+
+            <button class="download-btn" onclick="window.print()">
+                Download Report
+            </button>
         </div>
+
+    </div>
+
+</div>
+        
+<div class="score-card">
+    <h2>Overall SEO Score</h2>
+
+    <div class="score-circle">
+        <div class="score-value">
+            {{ audit_results.overall_score }}
+            <span>/100</span>
+        </div>
+    </div>
+
+    <div class="score-status">
+        Good
+    </div>
+
+    <p class="score-message">
+        Your website is well-optimized!
+    </p>
+</div>
         
         <div class="summary">
             <div class="summary-card">
@@ -293,14 +433,18 @@ class Reporter:
 </html>
         """
         
+        site_name = site_url.replace("https://", "").replace("http://", "").replace("www.", "").split(".")[0].capitalize()
+
         template = Template(html_template)
+
         html_content = template.render(
+            site_name=site_name,
             site_url=site_url,
-            timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            timestamp=datetime.now().strftime('%d %b %Y | %I:%M %p'),
             audit_results=audit_results,
             summary=summary
         )
-        
+
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(html_content)
         
@@ -308,9 +452,10 @@ class Reporter:
     
     def generate_json_report(self, audit_results, site_url):
         """Generate JSON report"""
+
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'{self.output_dir}/seo_audit_{timestamp}.json'
-        
+
         report_data = {
             'site_url': site_url,
             'timestamp': datetime.now().isoformat(),
@@ -358,4 +503,3 @@ class Reporter:
             'pages_with_issues': pages_with_issues,
             'total_issues': total_issues,
         }
-
